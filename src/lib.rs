@@ -50,13 +50,10 @@ mod manage_connection;
 mod queue;
 
 use futures::stream::{self, StreamExt};
-use log::{debug, error};
+use log::debug;
 use std::iter::Iterator;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::executor;
 use tokio::sync::oneshot;
-use tokio::timer;
 
 pub use conn::{Conn, ConnFuture};
 pub use manage_connection::ManageConnection;
@@ -226,7 +223,7 @@ impl<C: ManageConnection + Send> Pool<C> {
     pub fn put_back(&self, mut conn: Live<C::Connection>) {
         debug!("put_back: start put back");
         let conn_pool = Arc::clone(&self.conn_pool);
-        executor::spawn(async move {
+        tokio::spawn(async move {
             let broken = conn_pool.has_broken(&mut conn);
             let conns = conn_pool.conns.lock().await;
             debug!("put_back: got lock for put back");
@@ -255,33 +252,6 @@ impl<C: ManageConnection + Send> Pool<C> {
             // If there are no waiting requests & we aren't over the max idle
             // connections limit, attempt to store it back in the pool
             conns.store(conn);
-        });
-    }
-
-    fn spawn_new_future_loop(&self) {
-        let this1 = self.clone();
-        executor::spawn(async move {
-            loop {
-                let this = this1.clone();
-                match this.conn_pool.connect().await {
-                    Ok(conn) => {
-                        let conns = this.conn_pool.conns.lock().await;
-                        debug!("creating new connection from spawn loop");
-                        conns.increment();
-                        ::std::mem::drop(conns);
-                        this.put_back(Live::new(conn));
-                        break;
-                    }
-                    Err(err) => {
-                        error!(
-                            "unable to establish new connection, trying again: {:?}",
-                            err
-                        );
-                        timer::delay(Instant::now() + Duration::from_secs(1)).await;
-                    }
-                }
-                //let result = this.conn_pool.connect().await;
-            }
         });
     }
 

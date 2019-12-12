@@ -7,7 +7,7 @@ pub use tokio_postgres;
 use async_trait::async_trait;
 use futures::FutureExt;
 
-use tokio::executor::spawn;
+use tokio::spawn;
 
 use tokio_postgres::error::Error;
 use tokio_postgres::{

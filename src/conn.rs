@@ -39,7 +39,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::{self, executor::block_on, Future};
+use futures::{self, Future};
 //use std::future::{self, Future};
 use std::ops::{Deref, DerefMut};
 
